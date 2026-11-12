@@ -3,6 +3,9 @@
 
 import ClaudeAPI
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import FoundationModels
 import Synchronization
 

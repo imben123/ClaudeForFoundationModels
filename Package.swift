@@ -4,6 +4,20 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
+// Elsewhere, such as on Linux, a copy of the parts of Foundation Models this package uses stands
+// in for Apple's. App Attest and image input need Apple's frameworks, so they're left out there.
+#if canImport(Darwin)
+let linuxDependencies: [Package.Dependency] = []
+let linuxTargetDependencies: [Target.Dependency] = []
+#else
+let linuxDependencies: [Package.Dependency] = [
+  .package(url: "https://github.com/imben123/FoundationModelsLinux", from: "0.1.0")
+]
+let linuxTargetDependencies: [Target.Dependency] = [
+  .product(name: "FoundationModels", package: "FoundationModelsLinux")
+]
+#endif
+
 let package = Package(
   name: "ClaudeForFoundationModels",
   // Every OS where Foundation Models supports server-side language models.
@@ -14,6 +28,7 @@ let package = Package(
   products: [
     .library(name: "ClaudeForFoundationModels", targets: ["ClaudeForFoundationModels"])
   ],
+  dependencies: linuxDependencies,
   targets: [
     // Internal Messages API client. No FoundationModels dependency.
     .target(name: "ClaudeAPI"),
@@ -21,7 +36,7 @@ let package = Package(
     // FoundationModels ↔ Messages API bridge.
     .target(
       name: "ClaudeForFoundationModels",
-      dependencies: ["ClaudeAPI"]
+      dependencies: ["ClaudeAPI"] + linuxTargetDependencies
     ),
 
     // Runnable usage example (`swift run ClaudeExample`). Deliberately not a

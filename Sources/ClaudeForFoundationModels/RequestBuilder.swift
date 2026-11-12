@@ -513,7 +513,9 @@ enum RequestBuilder {
       switch $0 {
       case .text(let t): t.content
       case .structure(let s): s.content.jsonString
+      #if canImport(ImageIO)
       case .attachment: nil
+      #endif
       @unknown default: nil
       }
     }
@@ -526,12 +528,15 @@ enum RequestBuilder {
       case .text(let t) where !t.content.isEmpty: [.text(t.content)]
       case .text: []
       case .structure(let s): [.text(s.content.jsonString)]
+      // Images need ImageIO, and other platforms have no attachments.
+      #if canImport(ImageIO)
       case .attachment(let a):
         switch a.content {
         case .image(let image):
           [try ClaudeImage(cgImage: image.cgImage, orientation: image.orientation).contentBlock]
         @unknown default: []
         }
+      #endif
       @unknown default: []
       }
     }

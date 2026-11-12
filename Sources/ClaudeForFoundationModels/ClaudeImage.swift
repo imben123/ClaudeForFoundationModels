@@ -1,6 +1,8 @@
 // Copyright 2026 Anthropic PBC
 // SPDX-License-Identifier: Apache-2.0
 
+// Images are decoded and re-encoded with ImageIO, which only Apple platforms have.
+#if canImport(ImageIO)
 import ClaudeAPI
 import CoreGraphics
 import Foundation
@@ -283,3 +285,4 @@ extension ClaudeImage {
     .image(ImageSource(mediaType: mediaType, data: data))
   }
 }
+#endif

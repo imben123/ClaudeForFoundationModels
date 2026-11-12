@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Synchronization
 
 /// The HTTP seam ``ClaudeClient`` talks through. Production uses
@@ -41,6 +44,7 @@ package struct URLSessionTransport: HTTPTransport {
     self.session = session
   }
 
+  #if canImport(Darwin)
   package func data(for request: URLRequest) async throws -> (Data, URLResponse) {
     let redirects = RedirectPolicy(origin: request.url)
     let (data, response) = try await session.data(for: request, delegate: redirects)
@@ -72,7 +76,130 @@ package struct URLSessionTransport: HTTPTransport {
     }
     return (stream, response)
   }
+  #else
+  // swift-corelibs-foundation has neither `bytes(for:delegate:)` nor
+  // `data(for:delegate:)`, and only calls a session's own delegate. So each
+  // request gets a session, with this session's configuration, whose delegate
+  // applies the redirect policy, hands on the response once headers arrive,
+  // then streams the body.
+
+  package func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+    let (bytes, response) = try await bytes(for: request)
+    var data = Data()
+    for try await byte in bytes { data.append(byte) }
+    return (data, response)
+  }
+
+  package func bytes(
+    for request: URLRequest
+  ) async throws -> (AsyncThrowingStream<UInt8, Error>, URLResponse) {
+    let delegate = StreamingDelegate(redirects: RedirectPolicy(origin: request.url))
+    let streamingSession = URLSession(
+      configuration: session.configuration,
+      delegate: delegate,
+      delegateQueue: nil
+    )
+    let task = streamingSession.dataTask(with: request)
+    delegate.continuation.onTermination = { _ in
+      task.cancel()
+      streamingSession.finishTasksAndInvalidate()
+    }
+    let response = try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        delegate.start(task, response: continuation)
+      }
+    } onCancel: {
+      task.cancel()
+    }
+    return (delegate.stream, response)
+  }
+  #endif
 }
+
+#if !canImport(Darwin)
+/// Hands on the response of one data task, then its body as it arrives.
+private final class StreamingDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+  let stream: AsyncThrowingStream<UInt8, Error>
+  let continuation: AsyncThrowingStream<UInt8, Error>.Continuation
+  private let redirects: RedirectPolicy
+  private let lock = NSLock()
+  private var response: CheckedContinuation<URLResponse, Error>?
+
+  init(redirects: RedirectPolicy) {
+    self.redirects = redirects
+    (stream, continuation) = AsyncThrowingStream.makeStream()
+  }
+
+  func start(_ task: URLSessionDataTask, response: CheckedContinuation<URLResponse, Error>) {
+    lock.withLock { self.response = response }
+    task.resume()
+  }
+
+  private func takeResponse() -> CheckedContinuation<URLResponse, Error>? {
+    lock.withLock {
+      defer { response = nil }
+      return response
+    }
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    if let target = request.url, redirects.allowsRedirect(to: target) {
+      completionHandler(request)
+    } else {
+      completionHandler(nil)
+    }
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    dataTask: URLSessionDataTask,
+    didReceive response: URLResponse,
+    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+  ) {
+    do {
+      try redirects.checkRefused()
+    } catch {
+      takeResponse()?.resume(throwing: error)
+      continuation.finish(throwing: error)
+      completionHandler(.cancel)
+      return
+    }
+    takeResponse()?.resume(returning: response)
+    completionHandler(.allow)
+  }
+
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    for byte in data { continuation.yield(byte) }
+  }
+
+  func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    // A refused redirect can end the task without a response of its own.
+    if let failure = refusal() ?? error {
+      takeResponse()?.resume(throwing: failure)
+      continuation.finish(throwing: failure)
+    } else {
+      takeResponse()?.resume(throwing: URLError(.badServerResponse))
+      continuation.finish()
+    }
+    session.finishTasksAndInvalidate()
+  }
+
+  private func refusal() -> Error? {
+    do {
+      try redirects.checkRefused()
+      return nil
+    } catch {
+      return error
+    }
+  }
+}
+#endif
 
 /// Per-task delegate that follows redirects only within the authority the
 /// request was made to. Refusing (rather than stripping known headers) keeps

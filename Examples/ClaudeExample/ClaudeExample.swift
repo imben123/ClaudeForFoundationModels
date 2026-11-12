@@ -47,7 +47,7 @@ struct ClaudeExample {
       var printed = ""
       for try await snapshot in session.streamResponse(to: prompt) {
         print(snapshot.content.dropFirst(printed.count), terminator: "")
-        fflush(stdout)  // deltas are sub-line; stdout is line-buffered
+        fflush(nil)  // deltas are sub-line; stdout is line-buffered
         printed = snapshot.content
       }
       print()

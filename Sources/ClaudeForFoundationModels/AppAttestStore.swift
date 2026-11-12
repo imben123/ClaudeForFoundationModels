@@ -1,6 +1,8 @@
 // Copyright 2026 Anthropic PBC
 // SPDX-License-Identifier: Apache-2.0
 
+// App Attest and the Keychain are only on Apple platforms.
+#if canImport(DeviceCheck)
 import Foundation
 import Security
 
@@ -153,3 +155,4 @@ struct KeychainError: LocalizedError, Sendable {
     return "Keychain error: \(message)"
   }
 }
+#endif

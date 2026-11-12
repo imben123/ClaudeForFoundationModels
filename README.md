@@ -4,6 +4,8 @@ Use Claude as a server-side language model through Apple's [Foundation Models](h
 
 > **Beta.** This package targets the Foundation Models server-side language model API introduced in the OS 27 betas. APIs may change before general availability.
 
+> **This fork** adds Linux. There, [FoundationModelsLinux](https://github.com/imben123/FoundationModelsLinux), a copy of the parts of Foundation Models this package uses, stands in for Apple's framework, and requests stream through `URLSession` from `FoundationNetworking`. App Attest and image input need Apple's frameworks, so they're left out on Linux: `.appAttest` fails as unsupported, and transcripts there have no attachments. Everything else, including API keys, proxies, thinking, tool calling and fallbacks, is unchanged, and on Apple platforms the package is the same as upstream. Tags are upstream's version with a `-linux.N` suffix. The package's own tests still need Apple's framework.
+
 ## Contents
 
 - [Requirements](#requirements)

@@ -28,16 +28,17 @@ enum ErrorMapper {
       // unavailable); no credential was produced.
       return ClaudeError.attestationFailed
     }
-    #endif
     if error is KeychainError {
       // Keychain reads can fail before first unlock, leaving the
       // credential temporarily unreachable. Surface the typed attestation
       // failure rather than an internal error type.
       return ClaudeError.attestationFailed
     }
+    #endif
     if let url = error as? URLError, url.code == .timedOut {
       return LanguageModelError.timeout(.init(debugDescription: url.localizedDescription))
     }
+    #if canImport(ImageIO)
     if let image = error as? ClaudeImage.Error {
       return LanguageModelError.unsupportedTranscriptContent(
         .init(
@@ -46,6 +47,7 @@ enum ErrorMapper {
         )
       )
     }
+    #endif
     return error
   }
 

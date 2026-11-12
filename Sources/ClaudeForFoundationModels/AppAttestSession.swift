@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import ClaudeAPI
+#if canImport(DeviceCheck)
 import CryptoKit
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Synchronization
 
+#if canImport(DeviceCheck)
 /// Manages the App Attest credential lifecycle for ``AuthMode/appAttest(clientID:)``.
 ///
 /// Owns key and token persistence (via ``AppAttestStore``), device
@@ -579,6 +585,17 @@ actor AppAttestSession {
     return Data(base64Encoded: normalized)
   }
 }
+#else
+/// App Attest needs Apple's DeviceCheck, so elsewhere no session is ever made
+/// (``ClaudeExecutor/makeAttestSession(_:transport:)`` returns nil) and
+/// ``AuthMode/appAttest(clientID:)`` fails as unsupported.
+actor AppAttestSession {
+  private init() {}
+  func attestIfNeeded() async throws { throw AppAttestError.unsupported }
+  func currentToken() async throws -> String { throw AppAttestError.unsupported }
+  func invalidateToken(usedToken: String?) {}
+}
+#endif
 
 enum AppAttestError: LocalizedError, Sendable, Equatable {
   enum Endpoint: String, Sendable {
