@@ -136,7 +136,6 @@ extension ClaudeLanguageModel: LanguageModel {
     return LanguageModelCapabilities(capabilities)
   }
 
-  #if canImport(UniformTypeIdentifiers)
   /// PDFs, which the API reads as `document` blocks, page by page with an image of each, so
   /// they need every model in ``fallbacks`` to take images, as ``capabilities`` does.
   @available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *)
@@ -144,7 +143,6 @@ extension ClaudeLanguageModel: LanguageModel {
     let chain = [model] + fallbacks.knownModels
     return chain.allSatisfy(\.capabilities.imageInput) && ClaudeDocument.supports(type)
   }
-  #endif
 
   public var executorConfiguration: ClaudeExecutor.Configuration {
     .init(

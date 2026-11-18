@@ -1,12 +1,13 @@
 // Copyright 2026 Anthropic PBC
 // SPDX-License-Identifier: Apache-2.0
 
-// Data attachments, and the types that name them, are only in Apple's framework.
-#if canImport(UniformTypeIdentifiers)
 import ClaudeAPI
 import Foundation
 import FoundationModels
+// Elsewhere, the copy of Foundation Models has its own `UTType`.
+#if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
+#endif
 
 /// A file for a Claude `document` content block.
 ///
@@ -49,4 +50,3 @@ struct ClaudeDocument: Sendable, Hashable {
     .document(ImageSource(mediaType: "application/pdf", data: data))
   }
 }
-#endif

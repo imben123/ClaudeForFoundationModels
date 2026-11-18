@@ -46,7 +46,6 @@ enum ErrorMapper {
         )
       )
     }
-    #if canImport(UniformTypeIdentifiers)
     if let document = error as? ClaudeDocument.Error {
       return LanguageModelError.unsupportedTranscriptContent(
         .init(
@@ -55,7 +54,6 @@ enum ErrorMapper {
         )
       )
     }
-    #endif
     return error
   }
 

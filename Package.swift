@@ -11,7 +11,7 @@ let linuxDependencies: [Package.Dependency] = []
 let linuxTargetDependencies: [Target.Dependency] = []
 #else
 let linuxDependencies: [Package.Dependency] = [
-  .package(url: "https://github.com/imben123/FoundationModelsLinux", from: "0.2.0")
+  .package(url: "https://github.com/imben123/FoundationModelsLinux", from: "0.3.0")
 ]
 let linuxTargetDependencies: [Target.Dependency] = [
   .product(name: "FoundationModels", package: "FoundationModelsLinux")
