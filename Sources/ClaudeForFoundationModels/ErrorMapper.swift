@@ -46,6 +46,16 @@ enum ErrorMapper {
         )
       )
     }
+    #if canImport(UniformTypeIdentifiers)
+    if let document = error as? ClaudeDocument.Error {
+      return LanguageModelError.unsupportedTranscriptContent(
+        .init(
+          unsupportedContent: [],
+          debugDescription: document.errorDescription ?? "Attachment could not be sent."
+        )
+      )
+    }
+    #endif
     return error
   }
 

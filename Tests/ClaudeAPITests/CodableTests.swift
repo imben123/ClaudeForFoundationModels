@@ -129,4 +129,25 @@ import Testing
     #expect(name == "get_weather")
     #expect(input == .object(["city": .string("SF")]))
   }
+
+  @Test func `a document block round-trips as a base64 PDF`() throws {
+    let block = ContentBlock.document(ImageSource(mediaType: "application/pdf", data: Data("%PDF".utf8)))
+    let encoded = try JSONEncoder().encode(block)
+    let object = try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+    #expect(object?["type"] as? String == "document")
+    let source = object?["source"] as? [String: Any]
+    #expect(source?["type"] as? String == "base64")
+    #expect(source?["media_type"] as? String == "application/pdf")
+    #expect(source?["data"] as? String == Data("%PDF".utf8).base64EncodedString())
+    #expect(try JSONDecoder().decode(ContentBlock.self, from: encoded) == block)
+  }
+
+  @Test func `a document block with another source is kept as it was sent`() throws {
+    let payload = #"{"source":{"type":"url","url":"https://example.com/a.pdf"},"type":"document"}"#
+    let block = try JSONDecoder().decode(ContentBlock.self, from: Data(payload.utf8))
+    guard case .raw = block else {
+      Issue.record("expected raw, got \(block)")
+      return
+    }
+  }
 }

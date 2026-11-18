@@ -4,6 +4,7 @@
 import Foundation
 import FoundationModels
 import Testing
+import UniformTypeIdentifiers
 
 @testable import ClaudeForFoundationModels
 
@@ -32,6 +33,19 @@ import DeviceCheck
     #expect(!limited.capabilities.contains(.vision))
     #expect(!limited.capabilities.contains(.reasoning))
     #expect(!limited.capabilities.contains(.guidedGeneration))
+  }
+
+  @available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *)
+  @Test func `PDFs are the only data attachments, for models that take images`() async throws {
+    let model = ClaudeLanguageModel(name: .sonnet4_6, auth: .apiKey("k"))
+    #expect(try await model.supportsDataAttachmentType(.pdf))
+    #expect(try await !model.supportsDataAttachmentType(.plainText))
+    #expect(try await !model.supportsDataAttachmentType(.mpeg4Movie))
+    #expect(try await !model.supportsDataEntryType(.pdf))
+
+    let plain = ClaudeModel(id: "claude-plain", capabilities: .init())
+    let narrowed = ClaudeLanguageModel(name: .opus5, auth: .apiKey("k"), fallbacks: [plain])
+    #expect(try await !narrowed.supportsDataAttachmentType(.pdf))
   }
 
   // Images and a schema are contracts, so every model that may serve the

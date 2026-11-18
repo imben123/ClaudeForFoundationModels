@@ -927,6 +927,39 @@ import Testing
     #expect(!source.data.isEmpty)
   }
 
+  @available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *)
+  @Test func `a PDF attachment becomes a document block with its bytes unchanged`() throws {
+    let pdf = Data("%PDF-1.7 test".utf8)
+    let transcript = Transcript(entries: [
+      .prompt(
+        .init(segments: [
+          .attachment(.init(content: .data(.init(contentType: .pdf, content: pdf)))),
+          .text(.init(content: "Summarize this.")),
+        ])
+      )
+    ])
+    let built = try RequestBuilder.build(from: .make(transcript: transcript), model: .sonnet4_6)
+    #expect(
+      built.request.messages[0].content == [
+        .document(ImageSource(mediaType: "application/pdf", data: pdf)), .text("Summarize this."),
+      ]
+    )
+  }
+
+  @available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *)
+  @Test func `a data attachment that isn't a PDF is refused, not dropped`() {
+    let transcript = Transcript(entries: [
+      .prompt(
+        .init(segments: [
+          .attachment(.init(content: .data(.init(contentType: .plainText, content: Data("hi".utf8)))))
+        ])
+      )
+    ])
+    #expect(throws: ClaudeDocument.Error.self) {
+      try RequestBuilder.build(from: .make(transcript: transcript), model: .sonnet4_6)
+    }
+  }
+
   @Test func `tool output images become image blocks in the tool result`() throws {
     let transcript = Transcript(entries: [
       .prompt(.init(segments: [.text(.init(content: "Screenshot the page"))])),

@@ -48,6 +48,38 @@ import Testing
 
     #expect(reasoningText(in: session.transcript) == "Let me think. Okay.")
   }
+
+  // The framework checks `supportsDataAttachmentType` before it sends a data
+  // attachment, and refuses the prompt if the model says no.
+  @available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *)
+  @Test func `a session sends a PDF attachment as a document block`() async throws {
+    let server = try await SSEStubServer(
+      body: thinkingTurnSSE(thinkingDeltas: ["Reading."])
+    )
+    defer { server.stop() }
+
+    let model = ClaudeLanguageModel(
+      name: .sonnet5,
+      auth: .apiKey("sk-test"),
+      baseURL: URL(string: "http://127.0.0.1:\(server.port)")!
+    )
+    let pdf = Data("%PDF-1.7 test".utf8)
+    let prompt = Transcript.Prompt(segments: [
+      .attachment(.init(content: .data(.init(contentType: .pdf, content: pdf)))),
+      .text(.init(content: "Summarize this.")),
+    ])
+    let session = LanguageModelSession(model: model, transcript: Transcript(entries: [.prompt(prompt)]))
+    for try await _ in session.streamResponse(to: "Go on.") {}
+
+    let body = try #require(server.capturedBody)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    let content = try #require(messages.first?["content"] as? [[String: Any]])
+    #expect(content.first?["type"] as? String == "document")
+    let source = try #require(content.first?["source"] as? [String: Any])
+    #expect(source["media_type"] as? String == "application/pdf")
+    #expect(source["data"] as? String == pdf.base64EncodedString())
+  }
 }
 
 /// Loopback HTTP server: answers each complete POST with a canned SSE stream

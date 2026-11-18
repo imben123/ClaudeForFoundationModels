@@ -535,6 +535,16 @@ enum RequestBuilder {
           #else
           [try ClaudeImage(encoded: image.data, mediaType: image.mediaType).contentBlock]
           #endif
+        // Data attachments, and so PDFs, are only in Apple's framework.
+        #if canImport(UniformTypeIdentifiers)
+        case .data(let data):
+          // Only a PDF, which the framework checks with `supportsDataAttachmentType` first.
+          if #available(iOS 27.2, macOS 27.2, visionOS 27.2, watchOS 27.2, *) {
+            [try ClaudeDocument(data).contentBlock]
+          } else {
+            []
+          }
+        #endif
         @unknown default: []
         }
       @unknown default: []

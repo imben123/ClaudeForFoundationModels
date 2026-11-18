@@ -7,6 +7,8 @@ import Foundation
 package enum ContentBlock: Sendable, Hashable, Codable {
   case text(String)
   case image(ImageSource)
+  /// A PDF, as base64 data in the same shape of source an image has.
+  case document(ImageSource)
   case toolUse(id: String, name: String, input: JSONValue)
   /// `content` is a block array — tool results may carry text and images.
   case toolResult(toolUseID: String, content: [ContentBlock], isError: Bool = false)
@@ -33,6 +35,13 @@ package enum ContentBlock: Sendable, Hashable, Codable {
       self = .text(try c.decode(String.self, forKey: .text))
     case "image":
       self = .image(try c.decode(ImageSource.self, forKey: .source))
+    case "document":
+      // Other sources, such as a URL or a file ID, are kept as they were sent.
+      if let source = try? c.decode(ImageSource.self, forKey: .source) {
+        self = .document(source)
+      } else {
+        self = .raw(try JSONValue(from: decoder))
+      }
     case "tool_use":
       self = .toolUse(
         id: try c.decode(String.self, forKey: .id),
@@ -74,6 +83,9 @@ package enum ContentBlock: Sendable, Hashable, Codable {
       try c.encode(t, forKey: .text)
     case .image(let s):
       try c.encode("image", forKey: .type)
+      try c.encode(s, forKey: .source)
+    case .document(let s):
+      try c.encode("document", forKey: .type)
       try c.encode(s, forKey: .source)
     case .toolUse(let id, let name, let input):
       try c.encode("tool_use", forKey: .type)
