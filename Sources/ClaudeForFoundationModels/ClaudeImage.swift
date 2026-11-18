@@ -1,7 +1,8 @@
 // Copyright 2026 Anthropic PBC
 // SPDX-License-Identifier: Apache-2.0
 
-// Images are decoded and re-encoded with ImageIO, which only Apple platforms have.
+// Images are decoded and re-encoded with ImageIO, which only Apple platforms have. Elsewhere
+// they're sent as they're given: see the end of the file.
 #if canImport(ImageIO)
 import ClaudeAPI
 import CoreGraphics
@@ -281,6 +282,56 @@ struct ClaudeImage: Sendable, Hashable {
 extension ClaudeImage {
   /// Wire content block. The bridge emits this once `Transcript.Segment` carries
   /// an image case — see ``RequestBuilder``.
+  var contentBlock: ContentBlock {
+    .image(ImageSource(mediaType: mediaType, data: data))
+  }
+}
+#else
+import ClaudeAPI
+import Foundation
+
+/// An image for a Claude image content block, as it was given.
+///
+/// Without ImageIO, an image can't be decoded, scaled or re-encoded, so FoundationModelsLinux's
+/// `Transcript.ImageAttachment` holds encoded bytes, and they're sent as they are. Only the
+/// media type and size the API refuses are checked here, and an image over the API's
+/// dimension limits is resized by the API.
+struct ClaudeImage: Sendable, Hashable {
+  let data: Data
+  let mediaType: String
+
+  /// Per-image byte ceiling the API enforces.
+  static let maxByteCount = 5 * 1024 * 1024
+  /// Media types the API accepts for image content.
+  static let supportedMediaTypes: Set<String> = [
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+  ]
+
+  enum Error: LocalizedError, Sendable {
+    /// The media type isn't one the API accepts.
+    case unsupportedMediaType(String)
+    /// Over ``maxByteCount``.
+    case tooLarge(byteCount: Int)
+
+    var errorDescription: String? {
+      switch self {
+      case .unsupportedMediaType(let mediaType):
+        "Images of type \(mediaType) can't be sent. Send JPEG, PNG, GIF or WebP."
+      case .tooLarge(let byteCount):
+        "The image is \(byteCount) bytes, over the \(ClaudeImage.maxByteCount)-byte limit."
+      }
+    }
+  }
+
+  init(encoded data: Data, mediaType: String) throws {
+    guard Self.supportedMediaTypes.contains(mediaType) else {
+      throw Error.unsupportedMediaType(mediaType)
+    }
+    guard data.count <= Self.maxByteCount else { throw Error.tooLarge(byteCount: data.count) }
+    self.data = data
+    self.mediaType = mediaType
+  }
+
   var contentBlock: ContentBlock {
     .image(ImageSource(mediaType: mediaType, data: data))
   }

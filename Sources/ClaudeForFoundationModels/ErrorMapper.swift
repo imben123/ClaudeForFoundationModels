@@ -38,7 +38,6 @@ enum ErrorMapper {
     if let url = error as? URLError, url.code == .timedOut {
       return LanguageModelError.timeout(.init(debugDescription: url.localizedDescription))
     }
-    #if canImport(ImageIO)
     if let image = error as? ClaudeImage.Error {
       return LanguageModelError.unsupportedTranscriptContent(
         .init(
@@ -47,7 +46,6 @@ enum ErrorMapper {
         )
       )
     }
-    #endif
     return error
   }
 

@@ -5,13 +5,13 @@
 import PackageDescription
 
 // Elsewhere, such as on Linux, a copy of the parts of Foundation Models this package uses stands
-// in for Apple's. App Attest and image input need Apple's frameworks, so they're left out there.
+// in for Apple's. App Attest needs Apple's frameworks, so it's left out there.
 #if canImport(Darwin)
 let linuxDependencies: [Package.Dependency] = []
 let linuxTargetDependencies: [Target.Dependency] = []
 #else
 let linuxDependencies: [Package.Dependency] = [
-  .package(url: "https://github.com/imben123/FoundationModelsLinux", from: "0.1.0")
+  .package(url: "https://github.com/imben123/FoundationModelsLinux", from: "0.2.0")
 ]
 let linuxTargetDependencies: [Target.Dependency] = [
   .product(name: "FoundationModels", package: "FoundationModelsLinux")
